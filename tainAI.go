@@ -104,12 +104,14 @@ func (ev AlpacaGenerationEvaluator) outputToAction(gamestate Gamestate, out []fl
 }
 
 type AlpacaGenerationEvaluator struct {
-	OutputPath  string
-	PlayerCount int
-	selfPlay    bool
-	baselineFnc TurnFunc
-	seed        int64
-	best        float64
+	OutputPath    string
+	PlayerCount   int
+	selfPlay      bool
+	selfCombiPlay bool
+	rounds        int
+	baselineFnc   TurnFunc
+	seed          int64
+	best          float64
 }
 
 func (ex AlpacaGenerationEvaluator) GenerationEvaluate(pop *genetics.Population, epoch *experiments.Generation, context *neat.NeatContext) (err error) {
@@ -188,7 +190,7 @@ func (ex AlpacaGenerationEvaluator) GenerationEvaluate(pop *genetics.Population,
 func (ex *AlpacaGenerationEvaluator) orgEvaluate(organism *genetics.Organism, fin chan bool) (isWinner bool) {
 
 	result := ex.runGame(organism.Phenotype)
-	const BADEST_GAME = 10000.0 //?
+	BADEST_GAME := float64(ex.rounds) * 10.0
 	organism.Error = float64(result) / BADEST_GAME
 	organism.Fitness = 1.0 - organism.Error
 	fin <- true
@@ -204,14 +206,13 @@ func (ex *AlpacaGenerationEvaluator) runGame(net *network.Network) (score int) {
 
 	sim.AddPlayer("EvoBot", ex.makeNetworkRunFunc(net))
 
-	result := sim.RunSimulation(1000)
+	result := sim.RunSimulation(ex.rounds)
 	//mfmt.Println(result)
 	return result[ex.PlayerCount-1]
 }
 
 func (ex *AlpacaGenerationEvaluator) orgsEvaluate(organisms []*genetics.Organism, fin chan bool) (isWinner bool) {
-	const BADEST_GAME = 10000.0 //?
-
+	BADEST_GAME := float64(ex.rounds) * 10.0
 	nets := make([]*network.Network, len(organisms))
 
 	//Prepare Networks
@@ -224,6 +225,9 @@ func (ex *AlpacaGenerationEvaluator) orgsEvaluate(organisms []*genetics.Organism
 
 	//Evaluatle Results
 	for i := 0; i < len(result); i++ {
+		if ex.selfCombiPlay {
+			result[i] = (result[i] + ex.runGame(nets[i])) / 2
+		}
 		organisms[i].Error = float64(result[i]) / BADEST_GAME
 		organisms[i].Fitness = 1.0 - organisms[i].Error
 	}
@@ -259,7 +263,7 @@ func (ex *AlpacaGenerationEvaluator) runGameMult(nets []*network.Network) (score
 		sim.AddPlayer("EvoBot"+strconv.Itoa(i), ex.makeNetworkRunFunc(nets[i]))
 	}
 
-	result := sim.RunSimulation(1000)
+	result := sim.RunSimulation(ex.rounds)
 	//mfmt.Println(result)
 	return result
 
