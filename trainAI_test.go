@@ -11,7 +11,7 @@ import (
 )
 
 func TestTrainAI(t *testing.T) {
-	out_dir_path := "Out"
+	out_dir_path := "Out4"
 	// Check if output dir exists
 	if _, err := os.Stat(out_dir_path); err == nil {
 		// clear it
@@ -30,6 +30,12 @@ func TestTrainAI(t *testing.T) {
 		return
 	}
 
+	/*genomFile, err := os.Open("pole1_winner_200-930")
+	if err != nil {
+		t.Error("Failed to load context", err)
+		return
+	}*/
+
 	context := neat.LoadContext(configFile)
 	neat.LogLevel = neat.LogLevelDebug
 	context.NodeActivatorsProb[0] = 0.25
@@ -47,6 +53,7 @@ func TestTrainAI(t *testing.T) {
 	neat.LogLevel = neat.LogLevelInfo
 
 	startGenome := genetics.NewGenomeRand(0, 7+(4*7)+1+1+1, 1+1+7, 15, 30, true, 0.25)
+	//startGenome, err := genetics.ReadGenome(genomFile,0)
 
 	//pop, err := genetics.NewPopulationRandom(7+(4*7)+1+1+1, 1+1+7, 50, true, 0.15, context)
 
@@ -56,11 +63,11 @@ func TestTrainAI(t *testing.T) {
 	}
 
 	evaluator := AlpacaGenerationEvaluator{
-		OutputPath:    "Out",
+		OutputPath:    "Out2",
 		PlayerCount:   4,
 		selfPlay:      true,
 		selfCombiPlay: true,
-		rounds:        1000,
+		rounds:        1200,
 		baselineFnc:   BaseBot,
 	}
 

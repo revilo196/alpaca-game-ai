@@ -47,10 +47,10 @@ func (ev AlpacaGenerationEvaluator) gamestateToSensors(game Gamestate) []float64
 	return res
 }
 
-func (ev AlpacaGenerationEvaluator) outputToAction(gamestate Gamestate, out []float64) GameAction {
+func (ev AlpacaGenerationEvaluator) outputToAction(gamestate Gamestate, out []float64) (GameAction, int) {
 
 	action := GameAction{Action: "LEAVE ROUND"}
-
+	err := 0
 	for j := 0; j < 9; j++ {
 
 		max := 0.0
@@ -79,6 +79,7 @@ func (ev AlpacaGenerationEvaluator) outputToAction(gamestate Gamestate, out []fl
 				action.Card = name
 			} else {
 				//INVALID TURN
+				err++
 				out[idx] = 0.0
 				//TRY AGAIN
 			}
@@ -87,6 +88,7 @@ func (ev AlpacaGenerationEvaluator) outputToAction(gamestate Gamestate, out []fl
 			//DRAW
 			if gamestate.PlayersLeft == 1 || gamestate.CardpileLeft == 0 {
 				//INVALID TURN
+				err++
 				out[idx] = 0.0
 				//TRY AGAIN
 			} else {
@@ -100,7 +102,7 @@ func (ev AlpacaGenerationEvaluator) outputToAction(gamestate Gamestate, out []fl
 		}
 	}
 
-	return action
+	return action, err
 }
 
 type AlpacaGenerationEvaluator struct {
@@ -200,15 +202,18 @@ func (ex *AlpacaGenerationEvaluator) orgEvaluate(organism *genetics.Organism, fi
 func (ex *AlpacaGenerationEvaluator) runGame(net *network.Network) (score int) {
 	sim := NewAlpacaSimulation()
 	sim.Seed = ex.seed
+	errCounter := new(int)
+
 	for i := 1; i < ex.PlayerCount; i++ {
 		sim.AddPlayer("P"+strconv.Itoa(i), ex.baselineFnc)
 	}
 
-	sim.AddPlayer("EvoBot", ex.makeNetworkRunFunc(net))
+	sim.AddPlayer("EvoBot", ex.makeNetworkRunFunc(net, errCounter))
 
 	result := sim.RunSimulation(ex.rounds)
+
 	//mfmt.Println(result)
-	return result[ex.PlayerCount-1]
+	return result[ex.PlayerCount-1] + (*errCounter / 10)
 }
 
 func (ex *AlpacaGenerationEvaluator) orgsEvaluate(organisms []*genetics.Organism, fin chan bool) (isWinner bool) {
@@ -226,7 +231,8 @@ func (ex *AlpacaGenerationEvaluator) orgsEvaluate(organisms []*genetics.Organism
 	//Evaluatle Results
 	for i := 0; i < len(result); i++ {
 		if ex.selfCombiPlay {
-			result[i] = (result[i] + ex.runGame(nets[i])) / 2
+			single := ex.runGame(nets[i])
+			result[i] = (result[i] + single) / 2
 		}
 		organisms[i].Error = float64(result[i]) / BADEST_GAME
 		organisms[i].Fitness = 1.0 - organisms[i].Error
@@ -236,9 +242,10 @@ func (ex *AlpacaGenerationEvaluator) orgsEvaluate(organisms []*genetics.Organism
 	return false // IsWinner ...
 }
 
-func (ex *AlpacaGenerationEvaluator) makeNetworkRunFunc(net *network.Network) func(gamestate *Gamestate) *GameAction {
+func (ex *AlpacaGenerationEvaluator) makeNetworkRunFunc(net *network.Network, errCount *int) func(gamestate *Gamestate) *GameAction {
 	return func(gamestate *Gamestate) *GameAction {
-		err := net.LoadSensors(ex.gamestateToSensors(*gamestate))
+		in := ex.gamestateToSensors(*gamestate)
+		err := net.LoadSensors(in)
 		if err != nil {
 			panic(err)
 		}
@@ -250,7 +257,8 @@ func (ex *AlpacaGenerationEvaluator) makeNetworkRunFunc(net *network.Network) fu
 		}
 
 		out := net.ReadOutputs()
-		action := ex.outputToAction(*gamestate, out)
+		action, errC := ex.outputToAction(*gamestate, out)
+		*errCount = (*errCount) + errC
 		return &action
 	}
 }
@@ -258,13 +266,20 @@ func (ex *AlpacaGenerationEvaluator) makeNetworkRunFunc(net *network.Network) fu
 func (ex *AlpacaGenerationEvaluator) runGameMult(nets []*network.Network) (score []int) {
 	sim := NewAlpacaSimulation()
 	sim.Seed = ex.seed
-
+	errCounter := make([]*int, 4)
 	for i := 0; i < ex.PlayerCount; i++ {
-		sim.AddPlayer("EvoBot"+strconv.Itoa(i), ex.makeNetworkRunFunc(nets[i]))
+		errCounter[i] = new(int)
+		sim.AddPlayer("EvoBot"+strconv.Itoa(i), ex.makeNetworkRunFunc(nets[i], errCounter[i]))
 	}
 
 	result := sim.RunSimulation(ex.rounds)
 	//mfmt.Println(result)
+
+	for i := 0; i < ex.PlayerCount; i++ {
+		result[i] = result[i] + ((*errCounter[i]) / 10)
+
+	}
+
 	return result
 
 }
