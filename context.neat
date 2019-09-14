@@ -29,5 +29,5 @@ newlink_tries 20
 print_every 50
 babies_stolen 0
 num_runs 5
-num_generations 1200
+num_generations 1501
 log_level 1

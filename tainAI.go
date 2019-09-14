@@ -6,6 +6,7 @@ import (
 	"github.com/yaricom/goNEAT/neat"
 	"github.com/yaricom/goNEAT/neat/genetics"
 	"github.com/yaricom/goNEAT/neat/network"
+	"math/rand"
 	"time"
 
 	"os"
@@ -54,14 +55,16 @@ func (ev AlpacaGenerationEvaluator) outputToAction(gamestate Gamestate, out []fl
 	turnOk := false
 	topCard := gamestate.DiscardedCard
 
-	for j := 0; j < 4 && !turnOk; j++ {
+	for j := 0; j < 4 && !turnOk && gamestate.MyTurn; j++ {
 
 		max := 0.0
 		idx := 0
-		for i, v := range out {
-			if max < v {
-				max = v
-				idx = i
+		start := rand.Intn(len(out))
+
+		for i := 0; i < len(out); i++ {
+			if max < out[((i+start)%len(out))] {
+				max = out[((i + start) % len(out))]
+				idx = (i + start) % len(out)
 			}
 		}
 
@@ -135,10 +138,12 @@ type AlpacaGenerationEvaluator struct {
 	baselineFnc   TurnFunc
 	seed          int64
 	best          float64
+	errCnt        int64
 }
 
 func (ex AlpacaGenerationEvaluator) GenerationEvaluate(pop *genetics.Population, epoch *experiments.Generation, context *neat.NeatContext) (err error) {
-	const CORES = 4
+	const CORES = 14
+	ex.errCnt = 0
 	fin := make(chan bool)
 	ex.seed = time.Now().UnixNano()
 	if !ex.selfPlay {
@@ -177,6 +182,7 @@ func (ex AlpacaGenerationEvaluator) GenerationEvaluate(pop *genetics.Population,
 	}
 
 	epoch.FillPopulationStatistics(pop)
+	neat.InfoLog("Average ErrorCnt:" + fmt.Sprint(ex.errCnt/int64(context.PopSize*2)))
 
 	// Only print to file every print_every generations
 	if epoch.Solved || epoch.Id%context.PrintEvery == 0 {
@@ -190,22 +196,20 @@ func (ex AlpacaGenerationEvaluator) GenerationEvaluate(pop *genetics.Population,
 	}
 
 	// print best organisms
-	for _, org := range pop.Organisms {
-		if org.Fitness > ex.best {
-			ex.best = org.Fitness
-			// Prints the winner organism to file!
-			org_path := fmt.Sprintf("%s/%s_%d-%d", experiments.OutDirForTrial(ex.OutputPath, epoch.TrialId),
-				"pole1_winner", org.Phenotype.NodeCount(), org.Phenotype.LinkCount())
-			file, err := os.Create(org_path)
-			if err != nil {
-				neat.ErrorLog(fmt.Sprintf("Failed to dump winner organism genome, reason: %s\n", err))
-			} else {
-				org.Genotype.Write(file)
-				neat.InfoLog(fmt.Sprintf("Generation #%d winner dumped to: %s\n", epoch.Id, org_path))
-			}
-			break
-		}
+
+	// Prints the winner organism to file!
+	org_path := fmt.Sprintf("%s/%s_%f-%d-%d", experiments.OutDirForTrial(ex.OutputPath, epoch.TrialId),
+		"best", epoch.Best.Fitness, epoch.Best.Phenotype.NodeCount(), epoch.Best.Phenotype.LinkCount())
+	file, err := os.Create(org_path)
+	if err != nil {
+		neat.ErrorLog(fmt.Sprintf("Failed to dump winner organism genome, reason: %s\n", err))
+	} else {
+		epoch.Best.Genotype.Write(file)
+		neat.InfoLog(fmt.Sprintf("Generation #%d winner dumped to: %s\n", epoch.Id, org_path))
 	}
+
+	result, errCnt := ex.runGameInfo(epoch.Best.Phenotype)
+	neat.InfoLog("BestInfo: " + fmt.Sprint(result, errCnt))
 
 	return err
 }
@@ -233,8 +237,29 @@ func (ex *AlpacaGenerationEvaluator) runGame(net *network.Network) (score int) {
 
 	result := sim.RunSimulation(ex.rounds)
 
+	ex.errCnt += int64(*errCounter)
+
 	//mfmt.Println(result)
 	return result[ex.PlayerCount-1] + (*errCounter / 10)
+}
+
+func (ex *AlpacaGenerationEvaluator) runGameInfo(net *network.Network) (scores []int, errcnt int) {
+	sim := NewAlpacaSimulation()
+	sim.Seed = ex.seed
+	errCounter := new(int)
+
+	for i := 1; i < ex.PlayerCount; i++ {
+		sim.AddPlayer("P"+strconv.Itoa(i), ex.baselineFnc)
+	}
+
+	sim.AddPlayer("EvoBot", ex.makeNetworkRunFunc(net, errCounter))
+
+	result := sim.RunSimulation(ex.rounds)
+
+	ex.errCnt += int64(*errCounter)
+
+	//mfmt.Println(result)
+	return result, *errCounter
 }
 
 func (ex *AlpacaGenerationEvaluator) orgsEvaluate(organisms []*genetics.Organism, fin chan bool) (isWinner bool) {
@@ -297,6 +322,7 @@ func (ex *AlpacaGenerationEvaluator) runGameMult(nets []*network.Network) (score
 	//mfmt.Println(result)
 
 	for i := 0; i < ex.PlayerCount; i++ {
+		ex.errCnt += int64(*errCounter[i])
 		result[i] = result[i] + ((*errCounter[i]) / 10)
 
 	}

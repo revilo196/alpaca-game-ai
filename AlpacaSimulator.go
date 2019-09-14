@@ -168,7 +168,7 @@ func (sim *AlpacaSimulation) round() []int {
 func (sim *AlpacaSimulation) getGame(playeridx int) Gamestate {
 
 	game := Gamestate{
-		MyTurn:        playeridx == sim.nextPlayer,
+		MyTurn:        playeridx == sim.nextPlayer && sim.players[playeridx].InGame,
 		OtherPlayers:  make([]map[string]PlayerStat, 0),
 		Hand:          sim.playerCards[playeridx],
 		DiscardedCard: sim.topDiscardedCard,
