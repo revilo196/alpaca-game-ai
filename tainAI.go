@@ -51,7 +51,10 @@ func (ev AlpacaGenerationEvaluator) outputToAction(gamestate Gamestate, out []fl
 
 	action := GameAction{Action: "LEAVE ROUND"}
 	err := 0
-	for j := 0; j < 9; j++ {
+	turnOk := false
+	topCard := gamestate.DiscardedCard
+
+	for j := 0; j < 4 && !turnOk; j++ {
 
 		max := 0.0
 		idx := 0
@@ -62,30 +65,46 @@ func (ev AlpacaGenerationEvaluator) outputToAction(gamestate Gamestate, out []fl
 			}
 		}
 
-		if idx < 7 {
-
+		switch idx {
+		case 0: //Play Same Card
 			contains := false
-			name := ""
 			for _, v := range gamestate.Hand {
-				if v.Type == idx {
+				if v.Type == topCard.Type {
+					action.Card = v.Name
+					action.Action = "DROP CARD"
+					turnOk = true
 					contains = true
-					name = v.Name
 					break
 				}
 			}
-
-			if contains && (idx == gamestate.DiscardedCard.Type || idx == (gamestate.DiscardedCard.Type+1)%7) {
-				action.Action = "DROP CARD"
-				action.Card = name
-			} else {
+			if !contains {
 				//INVALID TURN
 				err++
 				out[idx] = 0.0
 				//TRY AGAIN
 			}
+			break
+		case 1: //Play Next Card
+			contains := false
+			for _, v := range gamestate.Hand {
+				if v.Type == (topCard.Type+1)%7 {
+					action.Card = v.Name
+					action.Action = "DROP CARD"
+					turnOk = true
+					contains = true
+					break
+				}
+			}
+			if !contains {
+				//INVALID TURN
+				err++
+				out[idx] = 0.0
+				//TRY AGAIN
+			}
+			break
 
-		} else if idx == 7 {
-			//DRAW
+		case 2: // DRAW CARD
+			//ERROR if one player left or Cardpile Empty
 			if gamestate.PlayersLeft == 1 || gamestate.CardpileLeft == 0 {
 				//INVALID TURN
 				err++
@@ -93,11 +112,13 @@ func (ev AlpacaGenerationEvaluator) outputToAction(gamestate Gamestate, out []fl
 				//TRY AGAIN
 			} else {
 				action.Action = "DRAW CARD"
-				break
+				turnOk = true
 			}
-		} else if idx == 8 {
-			//LEAVE
+			break
+
+		case 3: // LEAVE ROUND
 			action.Action = "LEAVE ROUND"
+			turnOk = true
 			break
 		}
 	}

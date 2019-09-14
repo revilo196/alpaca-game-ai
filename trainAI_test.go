@@ -52,7 +52,7 @@ func TestTrainAI(t *testing.T) {
 
 	neat.LogLevel = neat.LogLevelInfo
 
-	startGenome := genetics.NewGenomeRand(0, 7+(4*7)+1+1+1, 1+1+7, 15, 30, true, 0.25)
+	startGenome := genetics.NewGenomeRand(0, 7+(4*7)+1+1+1, 1+1+2, 10, 20, false, 0.25)
 	//startGenome, err := genetics.ReadGenome(genomFile,0)
 
 	//pop, err := genetics.NewPopulationRandom(7+(4*7)+1+1+1, 1+1+7, 50, true, 0.15, context)
@@ -63,7 +63,7 @@ func TestTrainAI(t *testing.T) {
 	}
 
 	evaluator := AlpacaGenerationEvaluator{
-		OutputPath:    "Out2",
+		OutputPath:    "Out4",
 		PlayerCount:   4,
 		selfPlay:      true,
 		selfCombiPlay: true,
