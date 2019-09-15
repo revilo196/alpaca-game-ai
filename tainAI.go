@@ -233,14 +233,14 @@ func (ex *AlpacaGenerationEvaluator) runGame(net *network.Network) (score int) {
 		sim.AddPlayer("P"+strconv.Itoa(i), ex.baselineFnc)
 	}
 
-	sim.AddPlayer("EvoBot", ex.makeNetworkRunFunc(net, errCounter))
+	sim.AddPlayer("EvoBot", ex.MakeNetworkRunFunc(net, errCounter))
 
 	result := sim.RunSimulation(ex.rounds)
 
 	ex.errCnt += int64(*errCounter)
 
 	//mfmt.Println(result)
-	return result[ex.PlayerCount-1] + (*errCounter / 10)
+	return result[ex.PlayerCount-1]
 }
 
 func (ex *AlpacaGenerationEvaluator) runGameInfo(net *network.Network) (scores []int, errcnt int) {
@@ -252,7 +252,7 @@ func (ex *AlpacaGenerationEvaluator) runGameInfo(net *network.Network) (scores [
 		sim.AddPlayer("P"+strconv.Itoa(i), ex.baselineFnc)
 	}
 
-	sim.AddPlayer("EvoBot", ex.makeNetworkRunFunc(net, errCounter))
+	sim.AddPlayer("EvoBot", ex.MakeNetworkRunFunc(net, errCounter))
 
 	result := sim.RunSimulation(ex.rounds)
 
@@ -288,7 +288,7 @@ func (ex *AlpacaGenerationEvaluator) orgsEvaluate(organisms []*genetics.Organism
 	return false // IsWinner ...
 }
 
-func (ex *AlpacaGenerationEvaluator) makeNetworkRunFunc(net *network.Network, errCount *int) func(gamestate *Gamestate) *GameAction {
+func (ex *AlpacaGenerationEvaluator) MakeNetworkRunFunc(net *network.Network, errCount *int) func(gamestate *Gamestate) *GameAction {
 	return func(gamestate *Gamestate) *GameAction {
 		in := ex.gamestateToSensors(*gamestate)
 		err := net.LoadSensors(in)
@@ -315,7 +315,7 @@ func (ex *AlpacaGenerationEvaluator) runGameMult(nets []*network.Network) (score
 	errCounter := make([]*int, 4)
 	for i := 0; i < ex.PlayerCount; i++ {
 		errCounter[i] = new(int)
-		sim.AddPlayer("EvoBot"+strconv.Itoa(i), ex.makeNetworkRunFunc(nets[i], errCounter[i]))
+		sim.AddPlayer("EvoBot"+strconv.Itoa(i), ex.MakeNetworkRunFunc(nets[i], errCounter[i]))
 	}
 
 	result := sim.RunSimulation(ex.rounds)
@@ -323,7 +323,7 @@ func (ex *AlpacaGenerationEvaluator) runGameMult(nets []*network.Network) (score
 
 	for i := 0; i < ex.PlayerCount; i++ {
 		ex.errCnt += int64(*errCounter[i])
-		result[i] = result[i] + ((*errCounter[i]) / 10)
+		result[i] = result[i]
 
 	}
 

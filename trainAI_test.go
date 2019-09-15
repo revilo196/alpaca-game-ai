@@ -11,7 +11,7 @@ import (
 )
 
 func TestTrainAI(t *testing.T) {
-	out_dir_path := "Out4"
+	out_dir_path := "OutVSBase4"
 	// Check if output dir exists
 	if _, err := os.Stat(out_dir_path); err == nil {
 		// clear it
@@ -63,11 +63,11 @@ func TestTrainAI(t *testing.T) {
 	}
 
 	evaluator := AlpacaGenerationEvaluator{
-		OutputPath:    "Out4",
+		OutputPath:    "OutVSBase4",
 		PlayerCount:   4,
-		selfPlay:      true,
-		selfCombiPlay: true,
-		rounds:        1200,
+		selfPlay:      false,
+		selfCombiPlay: false,
+		rounds:        2000,
 		baselineFnc:   BaseBot,
 	}
 
