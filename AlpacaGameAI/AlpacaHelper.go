@@ -1,4 +1,4 @@
-package alpaca_game_ai
+package AlpacaGameAI
 
 func filterPlayableCards(allCards []Cart, topCard Cart) []Cart {
 

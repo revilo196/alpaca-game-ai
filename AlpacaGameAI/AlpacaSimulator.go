@@ -1,4 +1,4 @@
-package alpaca_game_ai
+package AlpacaGameAI
 
 import (
 	"math/rand"
@@ -74,7 +74,7 @@ func (sim *AlpacaSimulation) RunSimulation(rounds int) []int {
 
 func (sim *AlpacaSimulation) round() []int {
 	sim.over = false
-	sim.nextPlayer = 0
+	sim.nextPlayer = rand.Intn(len(sim.players))
 	sim.cardPile = make([]Cart, 0)
 	sim.discardedPile = make([]Cart, 0)
 

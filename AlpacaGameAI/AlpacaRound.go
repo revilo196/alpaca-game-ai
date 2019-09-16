@@ -1,7 +1,8 @@
-package alpaca_game_ai
+package AlpacaGameAI
 
 import (
 	"context"
+	"math/rand"
 	"net/http"
 	"strconv"
 )
@@ -38,7 +39,7 @@ func (a *AlpacaControl) Init() {
 		conn[i].Url = a.Url
 		conn[i].CallbackPort = a.CallbackPort
 		conn[i].CallbackIP = a.CallbackIP
-		conn[i].CallbackHandle = "/call" + strconv.Itoa(i)
+		conn[i].CallbackHandle = "/call" + strconv.Itoa(rand.Intn(999))
 
 		conn[i].CallbackFunc = makeFnc(i)
 		conn[i].GameEnd = end
@@ -60,7 +61,7 @@ func (a *AlpacaControl) RunRound() []int {
 	}()
 
 	for i := 0; i < a.PlayerCount; i++ {
-		a.connections[i].Login("P" + strconv.Itoa(i))
+		a.connections[i].Login("P" + strconv.Itoa(rand.Intn(999)))
 	}
 	<-a.roundEnd
 	svr.Shutdown(context.TODO())

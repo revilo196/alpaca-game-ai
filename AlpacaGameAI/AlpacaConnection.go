@@ -1,4 +1,4 @@
-package alpaca_game_ai
+package AlpacaGameAI
 
 import (
 	"bytes"
